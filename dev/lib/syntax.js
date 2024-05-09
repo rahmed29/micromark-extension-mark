@@ -10,7 +10,7 @@
  * @typedef Options
  *   Configuration (optional).
  * @property {boolean | null | undefined} [singleTilde=true]
- *   Whether to support strikethrough with a single tilde (default: `true`).
+ *   Whether to support marked with a single tilde (default: `true`).
  *
  *   Single tildes work on github.com, but are technically prohibited by the
  *   GFM spec.
@@ -23,38 +23,38 @@ import {resolveAll} from 'micromark-util-resolve-all'
 import {codes, constants, types} from 'micromark-util-symbol'
 
 /**
- * Create an extension for `micromark` to enable GFM strikethrough syntax.
+ * Create an extension for `micromark` to enable GFM marked syntax.
  *
  * @param {Options | null | undefined} [options={}]
  *   Configuration.
  * @returns {Extension}
  *   Extension for `micromark` that can be passed in `extensions`, to
- *   enable GFM strikethrough syntax.
+ *   enable GFM marked syntax.
  */
-export function gfmStrikethrough(options) {
+export function mark(options) {
   const options_ = options || {}
   let single = options_.singleTilde
   const tokenizer = {
-    tokenize: tokenizeStrikethrough,
-    resolveAll: resolveAllStrikethrough
+    tokenize: tokenizemarked,
+    resolveAll: resolveAllmarked
   }
 
   if (single === null || single === undefined) {
-    single = true
+    single = false
   }
 
   return {
-    text: {[codes.tilde]: tokenizer},
+    text: {[codes.equalsTo]: tokenizer},
     insideSpan: {null: [tokenizer]},
-    attentionMarkers: {null: [codes.tilde]}
+    attentionMarkers: {null: [codes.equalsTo]}
   }
 
   /**
-   * Take events and resolve strikethrough.
+   * Take events and resolve marked.
    *
    * @type {Resolver}
    */
-  function resolveAllStrikethrough(events, context) {
+  function resolveAllmarked(events, context) {
     let index = -1
 
     // Walk through all events.
@@ -62,7 +62,7 @@ export function gfmStrikethrough(options) {
       // Find a token that can close.
       if (
         events[index][0] === 'enter' &&
-        events[index][1].type === 'strikethroughSequenceTemporary' &&
+        events[index][1].type === 'markedSequenceTemporary' &&
         events[index][1]._close
       ) {
         let open = index
@@ -72,25 +72,25 @@ export function gfmStrikethrough(options) {
           // Find a token that can open the closer.
           if (
             events[open][0] === 'exit' &&
-            events[open][1].type === 'strikethroughSequenceTemporary' &&
+            events[open][1].type === 'markedSequenceTemporary' &&
             events[open][1]._open &&
             // If the sizes are the same:
             events[index][1].end.offset - events[index][1].start.offset ===
               events[open][1].end.offset - events[open][1].start.offset
           ) {
-            events[index][1].type = 'strikethroughSequence'
-            events[open][1].type = 'strikethroughSequence'
+            events[index][1].type = 'markedSequence'
+            events[open][1].type = 'markedSequence'
 
             /** @type {Token} */
-            const strikethrough = {
-              type: 'strikethrough',
+            const marked = {
+              type: 'marked',
               start: Object.assign({}, events[open][1].start),
               end: Object.assign({}, events[index][1].end)
             }
 
             /** @type {Token} */
             const text = {
-              type: 'strikethroughText',
+              type: 'markedText',
               start: Object.assign({}, events[open][1].end),
               end: Object.assign({}, events[index][1].start)
             }
@@ -98,7 +98,7 @@ export function gfmStrikethrough(options) {
             // Opening.
             /** @type {Array<Event>} */
             const nextEvents = [
-              ['enter', strikethrough, context],
+              ['enter', marked, context],
               ['enter', events[open][1], context],
               ['exit', events[open][1], context],
               ['enter', text, context]
@@ -121,7 +121,7 @@ export function gfmStrikethrough(options) {
               ['exit', text, context],
               ['enter', events[index][1], context],
               ['exit', events[index][1], context],
-              ['exit', strikethrough, context]
+              ['exit', marked, context]
             ])
 
             splice(events, open - 1, index - open + 3, nextEvents)
@@ -136,7 +136,7 @@ export function gfmStrikethrough(options) {
     index = -1
 
     while (++index < events.length) {
-      if (events[index][1].type === 'strikethroughSequenceTemporary') {
+      if (events[index][1].type === 'markedSequenceTemporary') {
         events[index][1].type = types.data
       }
     }
@@ -148,7 +148,7 @@ export function gfmStrikethrough(options) {
    * @this {TokenizeContext}
    * @type {Tokenizer}
    */
-  function tokenizeStrikethrough(effects, ok, nok) {
+  function tokenizemarked(effects, ok, nok) {
     const previous = this.previous
     const events = this.events
     let size = 0
@@ -157,16 +157,16 @@ export function gfmStrikethrough(options) {
 
     /** @type {State} */
     function start(code) {
-      assert(code === codes.tilde, 'expected `~`')
+      assert(code === codes.equalsTo, 'expected `~`')
 
       if (
-        previous === codes.tilde &&
+        previous === codes.equalsTo &&
         events[events.length - 1][1].type !== types.characterEscape
       ) {
         return nok(code)
       }
 
-      effects.enter('strikethroughSequenceTemporary')
+      effects.enter('markedSequenceTemporary')
       return more(code)
     }
 
@@ -174,7 +174,7 @@ export function gfmStrikethrough(options) {
     function more(code) {
       const before = classifyCharacter(previous)
 
-      if (code === codes.tilde) {
+      if (code === codes.equalsTo) {
         // If this is the third marker, exit.
         if (size > 1) return nok(code)
         effects.consume(code)
@@ -183,7 +183,7 @@ export function gfmStrikethrough(options) {
       }
 
       if (size < 2 && !single) return nok(code)
-      const token = effects.exit('strikethroughSequenceTemporary')
+      const token = effects.exit('markedSequenceTemporary')
       const after = classifyCharacter(code)
       token._open =
         !after || (after === constants.attentionSideAfter && Boolean(before))

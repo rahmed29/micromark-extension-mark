@@ -1,3 +1,3 @@
 // Note: more types exposed from `index.d.ts`.
-export {gfmStrikethroughHtml} from './lib/html.js'
-export {gfmStrikethrough} from './lib/syntax.js'
+export {markHTML} from './lib/html.js'
+export {mark} from './lib/syntax.js'

@@ -1,5 +1,5 @@
-export {gfmStrikethroughHtml} from './lib/html.js'
-export {gfmStrikethrough, type Options} from './lib/syntax.js'
+export {markHTML} from './lib/html.js'
+export {mark, type Options} from './lib/syntax.js'
 
 declare module 'micromark-util-types' {
   interface TokenTypeMap {

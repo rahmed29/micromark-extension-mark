@@ -10,16 +10,16 @@
  *   Extension for `micromark` that can be passed in `htmlExtensions`, to
  *   support GFM strikethrough when serializing to HTML.
  */
-export function gfmStrikethroughHtml() {
+export function markHTML() {
   return {
     enter: {
-      strikethrough() {
-        this.tag('<del>')
+      marked() {
+        this.tag('<mark>')
       }
     },
     exit: {
-      strikethrough() {
-        this.tag('</del>')
+      marked() {
+        this.tag('</mark>')
       }
     }
   }
